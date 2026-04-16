@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Snake Game with Grid</title>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ff6ec4, #7873f5, #42e695);
+    background-size: 400% 400%;
+    animation: gradientBG 10s ease infinite;
+    font-family: Arial, sans-serif;
+    color: white;
+    height: 100vh;
+  }
+
+  @keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  h1 { margin-bottom: 5px; }
+
+  #score {
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+
+  canvas {
+    border-radius: 20px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.4);
+    background: #111;
+  }
+
+  button {
+    margin-top: 10px;
+    padding: 10px 18px;
+    font-size: 16px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    background: #ffffffaa;
+    color: #333;
+    font-weight: bold;
+  }
+
+  button:hover {
+    background: white;
+  }
+
+  #message {
+    margin-top: 10px;
+    font-size: 18px;
+    color: #fffacd;
+  }
+</style>
+</head>
+<body>
+
+<h1>Snake Game</h1>
+<div id="score">Score: 0</div>
+<canvas id="game" width="400" height="400"></canvas>
+<button onclick="restartGame()">Restart</button>
+<div id="message"></div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const gridSize = 20;
+const tileCount = canvas.width / gridSize;
+
+let snake, dx, dy, apple, score, gameOver;
+
+function init() {
+  snake = [{ x: 10, y: 10 }];
+  dx = 0;
+  dy = 0;
+  apple = randomPosition();
+  score = 0;
+  gameOver = false;
+  updateScore();
+  document.getElementById("message").textContent = "";
+}
+
+function restartGame() {
+  init();
+}
+
+function randomPosition() {
+  return {
+    x: Math.floor(Math.random() * tileCount),
+    y: Math.floor(Math.random() * tileCount)
+  };
+}
+
+document.addEventListener("keydown", (e) => {
+  if (gameOver) return;
+
+  if (e.key === "ArrowUp" && dy !== 1) {
+    dx = 0; dy = -1;
+  } else if (e.key === "ArrowDown" && dy !== -1) {
+    dx = 0; dy = 1;
+  } else if (e.key === "ArrowLeft" && dx !== 1) {
+    dx = -1; dy = 0;
+  } else if (e.key === "ArrowRight" && dx !== -1) {
+    dx = 1; dy = 0;
+  }
+});
+
+function update() {
+  if (gameOver) return;
+
+  const head = {
+    x: snake[0].x + dx,
+    y: snake[0].y + dy
+  };
+
+  // Wall collision → reset to center
+  if (
+    head.x < 0 || head.x >= tileCount ||
+    head.y < 0 || head.y >= tileCount
+  ) {
+    score--;
+    updateScore();
+
+    if (score <= -5) {
+      endGame("You lost! Hit -5.");
+      return;
+    }
+
+    snake = [{ x: 10, y: 10 }];
+    dx = 0;
+    dy = 0;
+    return;
+  }
+
+  snake.unshift(head);
+
+  if (head.x === apple.x && head.y === apple.y) {
+    score++;
+    updateScore();
+
+    if (score >= 5) {
+      endGame("You win! 🎉");
+      return;
+    }
+
+    apple = randomPosition();
+  } else {
+    snake.pop();
+  }
+}
+
+function drawGrid() {
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i <= tileCount; i++) {
+    // vertical lines
+    ctx.beginPath();
+    ctx.moveTo(i * gridSize, 0);
+    ctx.lineTo(i * gridSize, canvas.height);
+    ctx.stroke();
+
+    // horizontal lines
+    ctx.beginPath();
+    ctx.moveTo(0, i * gridSize);
+    ctx.lineTo(canvas.width, i * gridSize);
+    ctx.stroke();
+  }
+}
+
+function drawCircle(x, y, r, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawApple(x, y) {
+  const cx = x * gridSize + gridSize / 2;
+  const cy = y * gridSize + gridSize / 2;
+
+  // apple body
+  drawCircle(cx, cy, gridSize / 2 - 3, "#ff2d2d");
+
+  // shine
+  drawCircle(cx - 4, cy - 4, 3, "rgba(255,255,255,0.6)");
+
+  // stem
+  ctx.strokeStyle = "#5a3d1a";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 10);
+  ctx.lineTo(cx, cy - 16);
+  ctx.stroke();
+
+  // leaf
+  ctx.fillStyle = "#2ecc71";
+  ctx.beginPath();
+  ctx.ellipse(cx + 6, cy - 14, 6, 3, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // GRID BACKGROUND
+  drawGrid();
+
+  // Snake
+  snake.forEach((part, index) => {
+    const x = part.x * gridSize + gridSize / 2;
+    const y = part.y * gridSize + gridSize / 2;
+
+    drawCircle(x, y, gridSize / 2 - 2, index === 0 ? "#00ffcc" : "#00ff88");
+
+    // Eyes
+    if (index === 0) {
+      const eyeOffsetX = dx === 0 ? 4 : dx * 4;
+      const eyeOffsetY = dy === 0 ? 4 : dy * 4;
+
+      drawCircle(x - 5 + eyeOffsetX, y - 5 + eyeOffsetY, 3, "white");
+      drawCircle(x + 5 + eyeOffsetX, y - 5 + eyeOffsetY, 3, "white");
+
+      drawCircle(x - 5 + eyeOffsetX, y - 5 + eyeOffsetY, 1.5, "black");
+      drawCircle(x + 5 + eyeOffsetX, y - 5 + eyeOffsetY, 1.5, "black");
+    }
+  });
+
+  // Apple
+  drawApple(apple.x, apple.y);
+}
+
+function updateScore() {
+  document.getElementById("score").textContent = "Score: " + score;
+}
+
+function endGame(message) {
+  gameOver = true;
+  document.getElementById("message").textContent = message;
+}
+
+function gameLoop() {
+  update();
+  draw();
+}
+
+init();
+setInterval(gameLoop, 120);
+</script>
+
+</body>
+</html>
